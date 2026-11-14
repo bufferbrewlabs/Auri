@@ -10,6 +10,7 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'package:share_plus/share_plus.dart';
 import 'appearance_settings.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/exit_confirm.dart';
 import 'features/read_aloud/data/file_importer.dart';
 import 'features/read_aloud/data/incoming_text.dart';
 import 'features/read_aloud/data/reading_library.dart';
@@ -103,7 +104,10 @@ class _AuriAppState extends State<AuriApp> {
       theme: AppTheme.of(_appearance.palette, Brightness.light),
       darkTheme: AppTheme.of(_appearance.palette, Brightness.dark),
       themeMode: _appearance.themeMode,
-      home: ReaderScreen(settings: _settings, appearance: _appearance),
+      home: ExitConfirmScope(
+        appName: 'Auri',
+        child: ReaderScreen(settings: _settings, appearance: _appearance),
+      ),
     ),
   );
 }
