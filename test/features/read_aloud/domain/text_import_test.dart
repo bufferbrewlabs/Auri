@@ -117,6 +117,32 @@ void main() {
       expect(epub.text.title, 'The Book');
     });
 
+    test('reads .txt files as plain text titled from the name', () async {
+      final PickedImport txt = await importer.read(
+        'my_story.txt',
+        Uint8List.fromList(utf8.encode('Once upon a time.')),
+      );
+      expect(txt.kind, ImportKind.txt);
+      expect(txt.text.title, 'my story');
+      expect(txt.text.body, 'Once upon a time.');
+    });
+
+    test('a file without an extension gets a helpful message', () async {
+      for (final String name in <String>['README', 'notes.']) {
+        await expectLater(
+          importer.read(name, Uint8List(0)),
+          throwsA(
+            isA<ImportException>().having(
+              (ImportException e) => e.message,
+              'message',
+              allOf(contains('.txt'), isNot(contains('read . files'))),
+            ),
+          ),
+          reason: name,
+        );
+      }
+    });
+
     test('unknown extensions are refused with a message', () async {
       await expectLater(
         importer.read('song.mp3', Uint8List(0)),

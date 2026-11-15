@@ -53,12 +53,7 @@ Only suggest changes that help the listener. Return an empty array if none help.
         _ => 'OpenAI could not suggest hints (HTTP ${response.statusCode}).',
       });
     }
-    final payload = jsonDecode(response.body);
-    final content = payload['choices'][0]['message']['content'];
-    final result = jsonDecode(content as String);
-    final raw = result['suggestions'];
-    if (raw is! List) throw const FormatException('Missing suggestions');
-    for (final item in raw.take(8)) {
+    for (final item in _suggestionsIn(response.body).take(8)) {
       if (item is! Map) continue;
       final hint = DeliveryHint.fromJson({
         ...item,
@@ -94,6 +89,25 @@ Only suggest changes that help the listener. Return an empty array if none help.
     }
   }
   return suggestions;
+}
+
+/// The `suggestions` array inside a chat completion's JSON message content.
+/// Anything else is reported as one readable error rather than a type error.
+List<Object?> _suggestionsIn(String responseBody) {
+  try {
+    final content = switch (jsonDecode(responseBody)) {
+      {'choices': [{'message': {'content': final String c}}, ...]} => c,
+      _ => throw const FormatException(),
+    };
+    return switch (jsonDecode(content)) {
+      {'suggestions': final List<Object?> list} => list,
+      _ => throw const FormatException(),
+    };
+  } on FormatException {
+    throw const DeliverySuggestionException(
+      'OpenAI sent an answer Auri could not read. Try again.',
+    );
+  }
 }
 
 class DeliverySuggestionException implements Exception {

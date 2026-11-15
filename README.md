@@ -46,12 +46,28 @@ flutter run -d chrome
 flutter run
 ```
 
+### Checks
+
+GitHub Actions is off for Brew repos, so run the gate locally before merging:
+
 ```sh
-flutter analyze
-flutter test
-flutter build web
-flutter build apk --debug
+tool/check.sh          # format check, flutter analyze, tests, coverage floor
+tool/check.sh --build  # also flutter build web and a debug APK
 ```
+
+It fails on unformatted code, any analyzer finding (`analysis_options.yaml`
+enables strict casts, inference and raw types plus a few async lints), a
+failing test, or line coverage under `MIN_COVERAGE` (72% by default). The
+committed `pubspec.lock` was resolved with Flutter 3.44.x (Dart 3.12.2); a
+newer SDK rewrites the lock and adds deprecation notices, so don't commit
+those side effects.
+
+Tests live under `test/`, mirroring `lib/`. Network calls go through an
+injected `http.Client` and are tested with `MockClient`; settings and the
+library use `MemorySettingsStore`. In widget tests, create anything that holds
+futures (e.g. `ReadingLibrary`) inside the test body, not in `setUp`, or its
+futures complete outside the tester's fake-async zone and never settle.
+`test/local_kokoro_live_test.dart` is skipped unless pointed at a real model.
 
 There are no private Git dependencies and no Supabase setup. Android release
 signing must be configured with your own keystore before store distribution;
@@ -123,7 +139,9 @@ Or type the address in Settings. Kokoro reads chunk by chunk, making the next
 chunk while the current one plays. Auri can reuse audio for saved readings
 after an app restart, including cached Kokoro audio when the server is offline.
 Kokoro-FastAPI's captioned endpoint supplies word timings and supports delivery
-hints. Use **Export MP3** or **Share audio** to generate the whole file without
+hints. It is called next to the speech endpoint, keeping any path prefix: a
+server behind a proxy at `https://host/kokoro` is asked at
+`https://host/kokoro/dev/captioned_speech`. Use **Export MP3** or **Share audio** to generate the whole file without
 playing it first.
 
 On web the server must answer CORS preflight requests; a token gate that rejects

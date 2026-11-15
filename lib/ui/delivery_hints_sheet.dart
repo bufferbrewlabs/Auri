@@ -11,11 +11,15 @@ class DeliveryHintsSheet extends StatefulWidget {
     required this.text,
     required this.hints,
     required this.openAiKey,
+    this.newClient = http.Client.new,
   });
 
   final String text;
   final List<DeliveryHint> hints;
   final String openAiKey;
+
+  /// Makes the HTTP client for one suggestion request; replaced in tests.
+  final http.Client Function() newClient;
 
   @override
   State<DeliveryHintsSheet> createState() => _DeliveryHintsSheetState();
@@ -46,7 +50,7 @@ class _DeliveryHintsSheetState extends State<DeliveryHintsSheet> {
       );
       return;
     }
-    final client = http.Client();
+    final client = widget.newClient();
     setState(() {
       _client = client;
       _message = null;

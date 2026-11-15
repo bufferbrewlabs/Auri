@@ -98,6 +98,206 @@ void main() {
     ]);
   });
 
+  group('captioned endpoint', () {
+    String path(String url) =>
+        SpeechApi.captionedEndpoint(Uri.parse(url)).toString();
+
+    test('sits next to /v1/audio/speech at the host root', () {
+      expect(
+        path('https://example.com/v1/audio/speech'),
+        'https://example.com/dev/captioned_speech',
+      );
+    });
+
+    test('keeps a reverse-proxy path prefix', () {
+      expect(
+        path('https://example.com/kokoro/v1/audio/speech'),
+        'https://example.com/kokoro/dev/captioned_speech',
+      );
+      expect(
+        path('https://example.com:8443/tts/audio/speech'),
+        'https://example.com:8443/tts/dev/captioned_speech',
+      );
+    });
+
+    test('falls back to the root for other speech paths', () {
+      expect(
+        path('https://example.com/custom/speak'),
+        'https://example.com/dev/captioned_speech',
+      );
+    });
+
+    test('is the URL captioned() posts to', () async {
+      Uri? sent;
+      final api = SpeechApi(
+        MockClient((request) async {
+          sent = request.url;
+          return http.Response(
+            jsonEncode({
+              'audio': base64Encode([0xff, 0xfb, 0x90, 0]),
+            }),
+            200,
+          );
+        }),
+      );
+      await api.captioned(
+        endpoint: 'https://example.com/kokoro/v1/audio/speech',
+        apiKey: 'test-placeholder',
+        voice: 'af_heart',
+        text: 'Hello',
+        useMarkup: false,
+      );
+      expect(sent?.path, '/kokoro/dev/captioned_speech');
+    });
+  });
+
+  test(
+    'Kokoro reports malformed captioned bodies as SpeechException',
+    () async {
+      for (final body in [
+        'not json',
+        jsonEncode([1, 2]),
+        jsonEncode({'audio': 42}),
+        jsonEncode({'audio': '%%% not base64 %%%'}),
+        jsonEncode({
+          'audio': base64Encode(utf8.encode('<html>not audio</html>')),
+        }),
+      ]) {
+        final api = SpeechApi(
+          MockClient((_) async => http.Response(body, 200)),
+        );
+        await expectLater(
+          api.captioned(
+            endpoint: 'https://example.com/v1/audio/speech',
+            apiKey: 'test-placeholder',
+            voice: 'af_heart',
+            text: 'Hello',
+            useMarkup: true,
+          ),
+          throwsA(isA<SpeechException>()),
+          reason: body,
+        );
+      }
+    },
+  );
+
+  test('Kokoro drops malformed timestamps and sorts the rest', () async {
+    final api = SpeechApi(
+      MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'audio': base64Encode([0x49, 0x44, 0x33, 4]),
+            'timestamps': [
+              {'word': 'world', 'start_time': 0.5, 'end_time': 0.9},
+              'garbage',
+              {'word': 'Hello', 'start_time': 0.1, 'end_time': 0.4},
+            ],
+          }),
+          200,
+        ),
+      ),
+    );
+    final result = await api.captioned(
+      endpoint: 'https://example.com/v1/audio/speech',
+      apiKey: 'test-placeholder',
+      voice: 'af_heart',
+      text: 'Hello world',
+      useMarkup: true,
+    );
+    expect(result.timings.map((t) => t.word), ['Hello', 'world']);
+  });
+
+  group('voices', () {
+    test('lists bare and object ids, sorted, from /audio/voices', () async {
+      final api = SpeechApi(
+        MockClient((request) async {
+          expect(request.method, 'GET');
+          expect(request.url.path, '/v1/audio/voices');
+          expect(request.headers['Authorization'], 'Bearer test-placeholder');
+          return http.Response(
+            jsonEncode({
+              'voices': [
+                'bf_emma',
+                {'id': 'af_heart'},
+                {'name': 'no id'},
+                7,
+              ],
+            }),
+            200,
+          );
+        }),
+      );
+      expect(
+        await api.voices(
+          endpoint: 'https://example.com/v1/audio/speech',
+          apiKey: 'test-placeholder',
+        ),
+        ['af_heart', 'bf_emma'],
+      );
+    });
+
+    Future<void> voicesFail(
+      http.Response response, {
+      String endpoint = 'https://example.com/v1/audio/speech',
+      String key = 'test-placeholder',
+      int? status,
+    }) => expectLater(
+      SpeechApi(
+        MockClient((_) async => response),
+      ).voices(endpoint: endpoint, apiKey: key),
+      throwsA(isA<SpeechException>().having((e) => e.status, 'status', status)),
+    );
+
+    test('reports a rejected key with its status', () async {
+      await voicesFail(http.Response('', 401), status: 401);
+      await voicesFail(http.Response('', 403), status: 403);
+    });
+
+    test('fails cleanly on errors, empty lists and non-JSON', () async {
+      await voicesFail(http.Response('', 500));
+      await voicesFail(http.Response(jsonEncode({'voices': <String>[]}), 200));
+      await voicesFail(http.Response('<html>', 200));
+    });
+
+    test('needs a key and an /audio/speech endpoint', () async {
+      await voicesFail(http.Response('', 200), key: '  ');
+      await voicesFail(
+        http.Response('', 200),
+        endpoint: 'https://example.com/speak',
+      );
+    });
+  });
+
+  test('generate validates its inputs before any request', () async {
+    final api = SpeechApi(MockClient((_) async => fail('Must not send')));
+    await expectLater(
+      generate(api, text: '   '),
+      throwsA(isA<SpeechException>()),
+    );
+    await expectLater(
+      api.generate(
+        text: 'Hello.',
+        endpoint: 'https://example.com/v1/audio/speech',
+        apiKey: ' ',
+        model: 'tts-1',
+        voice: 'alloy',
+      ),
+      throwsA(isA<SpeechException>()),
+    );
+  });
+
+  test('maps rate limits to a quota message', () async {
+    final api = SpeechApi(MockClient((_) async => http.Response('', 429)));
+    await expectLater(
+      generate(api),
+      throwsA(
+        isA<SpeechException>()
+            .having((e) => e.status, 'status', 429)
+            .having((e) => e.message, 'message', contains('quota')),
+      ),
+    );
+  });
+
   test('rejects insecure endpoints before sending a key', () async {
     final api = SpeechApi(
       MockClient((_) async {
