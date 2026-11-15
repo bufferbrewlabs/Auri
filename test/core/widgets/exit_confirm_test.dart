@@ -5,12 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:auri/core/widgets/exit_confirm.dart';
 
 void main() {
-  testWidgets('Back on the root screen asks before exiting (Android)',
-      (tester) async {
+  testWidgets('Back on the root screen asks before exiting (Android)', (
+    tester,
+  ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    await tester.pumpWidget(const MaterialApp(
-      home: ExitConfirmScope(appName: 'Test', child: Scaffold()),
-    ));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ExitConfirmScope(appName: 'Test', child: Scaffold()),
+      ),
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();

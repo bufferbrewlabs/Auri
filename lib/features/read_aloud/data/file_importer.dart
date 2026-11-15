@@ -68,6 +68,11 @@ class FileImporter {
           text: (title: title, body: await _pdfText(bytes)),
           kind: ImportKind.pdf,
         );
+      case '':
+        throw const ImportException(
+          'Auri cannot tell what kind of file this is. '
+          'Use a .txt, .md, .pdf or .epub file.',
+        );
       default:
         throw ImportException('Auri cannot read .$ext files yet.');
     }

@@ -73,7 +73,14 @@ class ReadingLibrary {
   Future<List<SavedReading>> _load() async {
     final raw = await store.read(_key);
     if (raw == null) return [];
-    final data = jsonDecode(raw);
+    final Object? data;
+    try {
+      data = jsonDecode(raw);
+    } on FormatException {
+      // Unreadable storage must not lock the reader out of the library; the
+      // next save starts a fresh list.
+      return [];
+    }
     return [
       for (final value in data is List ? data : const [])
         ?SavedReading.fromJson(value),

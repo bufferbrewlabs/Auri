@@ -17,8 +17,9 @@ void main() {
         );
         expect(request.headers['Authorization'], 'Bearer test-placeholder');
         expect(request.followRedirects, isFalse);
-        final body = jsonDecode(request.body) as Map;
-        expect(body['messages'].last['content'], 'Hello. Hello.');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        final messages = body['messages']! as List<Object?>;
+        expect((messages.last! as Map)['content'], 'Hello. Hello.');
         return http.Response(
           jsonEncode({
             'choices': [
@@ -58,4 +59,86 @@ void main() {
       expect(placeHints('Hello. Hello.', hints).single.span.start, 7);
     },
   );
+
+  group('fails with a readable message', () {
+    Future<void> expectMessage(http.Response response, Matcher message) async {
+      final client = MockClient((_) async => response);
+      addTearDown(client.close);
+      await expectLater(
+        suggestDelivery(client, 'Hello.', 'test-placeholder'),
+        throwsA(
+          isA<DeliverySuggestionException>().having(
+            (e) => e.message,
+            'message',
+            message,
+          ),
+        ),
+      );
+    }
+
+    String completion(Object? content) => jsonEncode({
+      'choices': [
+        {
+          'message': {'content': content},
+        },
+      ],
+    });
+
+    test('for rejected keys, quotas and server errors', () async {
+      await expectMessage(http.Response('', 401), contains('API key'));
+      await expectMessage(http.Response('', 403), contains('API key'));
+      await expectMessage(http.Response('', 429), contains('quota'));
+      await expectMessage(http.Response('secret body', 500), contains('500'));
+      await expectMessage(
+        http.Response('secret body', 500),
+        isNot(contains('secret')),
+      );
+    });
+
+    test('for responses of the wrong shape', () async {
+      for (final body in [
+        'not json',
+        jsonEncode({'choices': <Object>[]}),
+        jsonEncode({
+          'choices': [
+            {'message': <String, Object>{}},
+          ],
+        }),
+        completion(42),
+        completion('not json either'),
+        completion(jsonEncode({'suggestions': 'nope'})),
+        completion(jsonEncode(['no', 'object'])),
+      ]) {
+        await expectMessage(http.Response(body, 200), contains('could not'));
+      }
+    });
+  });
+
+  test('ignores malformed items and caps each segment at 8', () async {
+    final client = MockClient(
+      (_) async => http.Response(
+        jsonEncode({
+          'choices': [
+            {
+              'message': {
+                'content': jsonEncode({
+                  'suggestions': [
+                    'not a map',
+                    {'anchor': 'Hello', 'occurrence': 1, 'kind': 'bogus'},
+                    for (var i = 0; i < 12; i++)
+                      {'anchor': 'Hello', 'occurrence': 1, 'kind': 'pause'},
+                  ],
+                }),
+              },
+            },
+          ],
+        }),
+        200,
+      ),
+    );
+    addTearDown(client.close);
+    final hints = await suggestDelivery(client, 'Hello.', 'test-placeholder');
+    expect(hints.length, 6);
+    expect(hints.every((h) => !h.enabled), isTrue);
+  });
 }

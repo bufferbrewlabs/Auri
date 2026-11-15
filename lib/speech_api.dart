@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'features/read_aloud/domain/text_chunk.dart';
 import 'mp3.dart';
@@ -90,23 +91,22 @@ class SpeechApi {
     required bool useMarkup,
   }) async {
     final speech = _checkEndpoint(endpoint);
-    final request =
-        http.Request('POST', speech.replace(path: '/dev/captioned_speech'))
-          ..followRedirects = false
-          ..headers.addAll({
-            'Authorization': 'Bearer ${apiKey.trim()}',
-            'Content-Type': 'application/json',
-          })
-          ..body = jsonEncode({
-            'model': 'kokoro',
-            'input': text,
-            'voice': voice,
-            'speed': 1,
-            'response_format': 'mp3',
-            'stream': false,
-            'return_timestamps': true,
-            'allow_voice_tags': true,
-          });
+    final request = http.Request('POST', captionedEndpoint(speech))
+      ..followRedirects = false
+      ..headers.addAll({
+        'Authorization': 'Bearer ${apiKey.trim()}',
+        'Content-Type': 'application/json',
+      })
+      ..body = jsonEncode({
+        'model': 'kokoro',
+        'input': text,
+        'voice': voice,
+        'speed': 1,
+        'response_format': 'mp3',
+        'stream': false,
+        'return_timestamps': true,
+        'allow_voice_tags': true,
+      });
     final response = await (() async {
       return http.Response.fromStream(await client.send(request));
     })().timeout(const Duration(seconds: 90));
@@ -129,11 +129,18 @@ class SpeechApi {
         status: response.statusCode,
       );
     }
-    final body = jsonDecode(response.body);
-    if (body is! Map || body['audio'] is! String) {
+    final Map<Object?, Object?> body;
+    final Uint8List audio;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map || decoded['audio'] is! String) {
+        throw const FormatException();
+      }
+      body = decoded;
+      audio = base64Decode(decoded['audio'] as String);
+    } on FormatException {
       throw const SpeechException('Kokoro returned no audio.');
     }
-    final audio = base64Decode(body['audio'] as String);
     if (!_isMp3(audio)) {
       throw const SpeechException('Kokoro returned invalid MP3 audio.');
     }
@@ -202,6 +209,19 @@ class SpeechApi {
         'The server sent no voice list. Type a voice instead.',
       );
     }
+  }
+
+  /// Kokoro-FastAPI serves timed speech at `/dev/captioned_speech`, a sibling
+  /// of `/v1/audio/speech`. Any path prefix in front of the speech endpoint
+  /// (a reverse proxy at `https://host/kokoro/…`) is kept.
+  @visibleForTesting
+  static Uri captionedEndpoint(Uri speech) {
+    final prefix = speech.path.replaceFirst(
+      RegExp(r'(/v1)?/audio/speech/?$'),
+      '',
+    );
+    final base = prefix == speech.path ? '' : prefix;
+    return speech.replace(path: '$base/dev/captioned_speech');
   }
 
   Uri _checkEndpoint(String endpoint) {

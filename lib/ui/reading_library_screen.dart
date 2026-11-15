@@ -84,7 +84,13 @@ class _ReadingLibraryScreenState extends State<ReadingLibraryScreen> {
   Future<void> _change(Future<void> Function() update) async {
     try {
       await update();
-      if (mounted) setState(() => _readings = widget.library.list());
+      // A block body: an arrow would return the Future from setState, which
+      // Flutter rejects (debug builds then showed the error snackbar below).
+      if (mounted) {
+        setState(() {
+          _readings = widget.library.list();
+        });
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -428,7 +428,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       await tts.setSpeechRate(_deviceRate);
       // A fresh engine per session binds late callbacks to their original run.
       if (!mounted || session != _session) return;
-      var from = _offset.clamp(0, _text.text.length);
+      final from = _offset.clamp(0, _text.text.length);
       for (final chunk in chunkText(_text.text.substring(from))) {
         if (!mounted || session != _session) return;
         final start = from + chunk.start;
@@ -1090,7 +1090,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     _forcedDevice = true;
     _notice = null;
     _fallback = null;
-    _readDevice();
+    unawaited(_readDevice());
   }
 
   Future<void> _openHints() async {
@@ -1273,7 +1273,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final resume = _playing;
     if (_locked || _audioWait != null) await _stop();
     if (!mounted) return;
-    s.checkKokoro();
+    unawaited(s.checkKokoro());
     final session = _session;
     final showSettings = await showModalBottomSheet<bool>(
       context: context,
