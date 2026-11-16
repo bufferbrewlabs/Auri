@@ -156,6 +156,21 @@ job, whatever its size.
   SQL query for Vault secrets), not from memory.
 - No page for the app yet: create one under Brew Apps Index.
 - The older "Steps for Live" database under bufferBrew Repos is not the target.
+- **Temporary fallback file.** If Notion is unavailable, the tool call fails,
+  or the update can't be finished in this job, write the pending items to
+  a persistent local file first:
+  `~/Desktop/code/bufferbrew/brewapps/.pending-actions/<App>.md` (one file per
+  app, outside every repo, so nothing gets committed). Each entry is a
+  checkbox line with the date and the reason it is not yet in Notion. The
+  next job that reaches Notion for that app pushes the entries to the app's
+  page and then removes them from the file. Never treat an item as done
+  because it sits in the file; it counts as pending until it is on the Notion
+  page.
+- **Batch Notion writes.** Collect pending items in the job's local file as
+  they come up, then update Notion once at the end of the job, in a single
+  call that carries every change (adds, ticks and removals together). Don't
+  call the Notion MCP once per item; each extra call is more to fail and to
+  rate-limit.
 
 ## Latest APKs in Google Drive
 
