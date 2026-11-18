@@ -1,20 +1,20 @@
-<!-- BEGIN brew-shared (synced from ~/Desktop/code/bufferbrew/brewapps/AGENTS.md by sync-agent-rules.sh; do not edit here) -->
+<!-- BEGIN brew-shared (synced from ~/Desktop/code/brewapps/AGENTS.md by sync-agent-rules.sh; do not edit here) -->
 
 # Brew ecosystem — shared agent rules
 
-Rules for every app in the Brew family (`bufferbrewlabs` GitHub org). They apply to
+Rules for every app in the Brew family (GitHub account `kartikjain-dev`; the `bufferbrewlabs` org until 2026-11-18). They apply to
 any coding agent — Claude Code, Codex, Cursor, Gemini, Copilot — working in
 any Brew repo. App-specific rules live in that repo's own `CLAUDE.md` /
 `AGENTS.md` below the shared block; where the two conflict, the app's own
 rules win for that app.
 
-Canonical source: `~/Desktop/code/bufferbrew/brewapps/AGENTS.md`. Each repo carries a synced
+Canonical source: `~/Desktop/code/brewapps/AGENTS.md`. Each repo carries a synced
 copy between `brew-shared` markers — edit the canonical file, then run
-`~/Desktop/code/bufferbrew/brewapps/sync-agent-rules.sh`. Never edit the synced block in place.
+`~/Desktop/code/brewapps/sync-agent-rules.sh`. Never edit the synced block in place.
 
 ## Members
 
-Brew apps live under `~/Desktop/code/bufferbrew/brewapps/`, one git repo per folder:
+Brew apps live under `~/Desktop/code/brewapps/`, one git repo per folder:
 BREW, BrewHire, BrewTales, BrewVoyage, Kurio, Synapse, Auri, WealthBrew.
 BrewVoyage as a standalone app was retired 2026-11-16; its trips live in Nook's
 `voyage` schema.
@@ -42,8 +42,8 @@ schema.
 ## Naming
 
 - Every app has a one-word product name (e.g. Synapse) and sits under one
-  umbrella, Brew: present it as "<Name> · a Brew app", target the `bufferbrewlabs`
-  org, and build on the shared `brew-packages` (code, theme, icon style).
+  umbrella, Brew: present it as "<Name> · a Brew app", target the `kartikjain-dev`
+  account, and build on the shared `brew-packages` (code, theme, icon style).
   Apps are being renamed one at a time; older `<Thing>Brew` names stay until
   their turn. No ad-hoc names: agree a new name before using it.
 - Supabase Edge Function slugs are flat across the shared project, so prefix
@@ -57,8 +57,8 @@ schema.
 - Stage files by name. No `git add -A` / `git add .`.
 - **Never commit `graphify-out/`** — not even as a separate graph commit. If an
   app's own docs say to commit the graph, flag the conflict instead.
-- Shared Flutter code lives in `bufferbrewlabs/brew-packages`
-  (`~/Desktop/code/bufferbrew/brewapps/packages`, a pub workspace). Only schema-agnostic
+- Shared Flutter code lives in `kartikjain-dev/brew-packages`
+  (`~/Desktop/code/brewapps/packages`, a pub workspace). Only schema-agnostic
   client code belongs there — HTTP/LLM provider dispatch, Supabase bootstrap,
   auth helpers — never a repository class tied to one app's tables.
 - Apps depend on it by **git dep pinned to the commit SHA of a release tag**,
@@ -67,7 +67,7 @@ schema.
   name: brew_auth/brew_ui reach brew_core by an in-repo path, which pub records
   as the SHA, and a tag-name ref then counts as a different source and fails
   to resolve. Get the SHA with
-  `git ls-remote https://github.com/bufferbrewlabs/brew-packages.git 'refs/tags/vX.Y.Z^{}'`.
+  `git ls-remote https://github.com/kartikjain-dev/brew-packages.git 'refs/tags/vX.Y.Z^{}'`.
   To develop against a local checkout, add a git-ignored
   `pubspec_overrides.yaml` pointing at `../packages/<pkg>` — only
   while you're editing the package. It rewrites `pubspec.lock` to a `path:`
@@ -139,7 +139,7 @@ All of these fail silently if ignored:
   Use the shared test account `brew.test01@example.com`; don't create per-app
   test users. It exists on both projects (the Nook copy has the same password
   hash). Its password is in
-  `~/Desktop/code/bufferbrew/brewapps/.secrets/test-user.env`
+  `~/Desktop/code/brewapps/.secrets/test-user.env`
   (`BREW_TEST_PASSWORD`, outside every repo). Read it into a variable or env
   file only — never print, echo, log, paste into chat, or commit it. To reset
   it, hash locally and update `auth.users`; don't put the plaintext in SQL.
@@ -159,7 +159,7 @@ and the deploy:
   and report the real results.
 - **After every merge to the default branch** of an app with a web build,
   deploy it from this Mac:
-  `~/Desktop/code/bufferbrew/brewapps/deploy-vercel.sh <App>`
+  `~/Desktop/code/brewapps/deploy-vercel.sh <App>`
   (BREW, Kurio, Synapse, WealthBrew, BrewHire; `all --if-changed` does every
   app whose default branch moved). It deploys `origin/<default>` from a
   `git archive` copy, so local branches, uncommitted work and untracked
@@ -186,7 +186,7 @@ job, whatever its size.
 - **Temporary fallback file.** If Notion is unavailable, the tool call fails,
   or the update can't be finished in this job, write the pending items to
   a persistent local file first:
-  `~/Desktop/code/bufferbrew/brewapps/.pending-actions/<App>.md` (one file per
+  `~/Desktop/code/brewapps/.pending-actions/<App>.md` (one file per
   app, outside every repo, so nothing gets committed). Each entry is a
   checkbox line with the date and the reason it is not yet in Notion. The
   next job that reaches Notion for that app pushes the entries to the app's

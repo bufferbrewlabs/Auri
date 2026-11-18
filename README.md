@@ -232,7 +232,7 @@ appropriate offline voice to read without a connection.
 ## Provenance
 
 Document parsing, text chunking, MP3 joining, and theme tokens are adapted from
-[bufferBrew/NeuroBrew](https://github.com/bufferbrewlabs/NeuroBrew).
+[NeuroBrew, now Synapse](https://github.com/kartikjain-dev/Synapse).
 This repository starts with new history and includes no original environment
 files, deployment configuration, credentials, or user documents.
 
